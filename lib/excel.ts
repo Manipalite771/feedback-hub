@@ -9,6 +9,7 @@ interface CommentRow {
   upvote_count: number;
   updated_at: string;
   edit_count: number;
+  deleted_at?: string | null;
 }
 
 interface EditRow {
@@ -47,11 +48,11 @@ function styleHeaderRow(sheet: ExcelJS.Worksheet) {
   sheet.views = [{ state: "frozen", ySplit: 1 }];
 }
 
-export function buildExportWorkbook(comments: CommentRow[]): ExcelJS.Workbook {
+export function buildExportWorkbook(comments: CommentRow[], includeDeleted = false): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet("Feedback");
 
-  sheet.columns = [
+  const columns: Partial<ExcelJS.Column>[] = [
     { header: "Submitted At", key: "created_at" },
     { header: "Submitter Name", key: "author_name" },
     { header: "Submitter Email", key: "author_email" },
@@ -62,8 +63,14 @@ export function buildExportWorkbook(comments: CommentRow[]): ExcelJS.Workbook {
     { header: "Edit Count", key: "edit_count" },
   ];
 
+  if (includeDeleted) {
+    columns.push({ header: "Deleted At", key: "deleted_at" });
+  }
+
+  sheet.columns = columns;
+
   comments.forEach((c) => {
-    sheet.addRow({
+    const row: Record<string, unknown> = {
       created_at: new Date(c.created_at),
       author_name: c.author_name,
       author_email: c.author_email,
@@ -72,7 +79,11 @@ export function buildExportWorkbook(comments: CommentRow[]): ExcelJS.Workbook {
       upvote_count: c.upvote_count,
       updated_at: c.edit_count > 0 ? new Date(c.updated_at) : "",
       edit_count: c.edit_count,
-    });
+    };
+    if (includeDeleted) {
+      row.deleted_at = c.deleted_at ? new Date(c.deleted_at) : "";
+    }
+    sheet.addRow(row);
   });
 
   styleHeaderRow(sheet);

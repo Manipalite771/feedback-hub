@@ -3,20 +3,28 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { buildExportWorkbook } from "@/lib/excel";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const includeDeleted = searchParams.get("all") === "true";
+
   const supabase = createAdminClient();
 
-  // Fetch active comments
-  const { data: comments, error } = await supabase
+  // Fetch comments — optionally include soft-deleted
+  let query = supabase
     .from("comments")
     .select("*")
-    .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
+  if (!includeDeleted) {
+    query = query.is("deleted_at", null);
+  }
+
+  const { data: comments, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -39,14 +47,15 @@ export async function GET() {
     upvote_count: countMap.get(c.id) || 0,
   }));
 
-  const wb = buildExportWorkbook(enriched);
+  const wb = buildExportWorkbook(enriched, includeDeleted);
   const buffer = await wb.xlsx.writeBuffer();
 
+  const prefix = includeDeleted ? "mwp-comments-full" : "mwp-comments";
   const date = new Date().toISOString().slice(0, 10);
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="feedback-hub-${date}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${prefix}-${date}.xlsx"`,
     },
   });
 }
