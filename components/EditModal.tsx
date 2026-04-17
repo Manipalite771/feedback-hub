@@ -76,7 +76,7 @@ export default function EditModal({ comment, onClose, onSaved }: EditModalProps)
               id="edit-type"
               value={commentType}
               onChange={(e) => setCommentType(e.target.value as CommentType)}
-              className="w-full sm:w-48 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              className="w-full sm:w-48 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent bg-white"
             >
               {COMMENT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
@@ -107,7 +107,7 @@ export default function EditModal({ comment, onClose, onSaved }: EditModalProps)
             <button
               type="submit"
               disabled={isEmpty || saving}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {saving ? "Saving..." : "Save changes"}
             </button>

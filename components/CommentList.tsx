@@ -188,9 +188,9 @@ export default function CommentList({ currentUserEmail }: CommentListProps) {
 
       {comments.length === 0 ? (
         <div className="text-center py-16">
-          <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-gray-500 mb-1">No feedback yet</h3>
-          <p className="text-sm text-gray-400">
+          <MessageCircle className="w-12 h-12 text-brand-200 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No comments yet</h3>
+          <p className="text-sm text-gray-500">
             Be the first to share your thoughts! Use the form above to submit a question, suggestion, or request.
           </p>
         </div>

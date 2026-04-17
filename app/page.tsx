@@ -12,15 +12,15 @@ export default async function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div className="min-h-screen bg-white">
+      <header className="bg-brand sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-blue-600" />
-            <h1 className="text-lg font-bold text-gray-900">Feedback Hub</h1>
+            <MessageSquare className="w-5 h-5 text-white" />
+            <h1 className="text-lg font-bold text-white">MWP Comments</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">{session.email}</span>
+            <span className="text-sm text-white/80">{session.email}</span>
             <SignOutButton />
           </div>
         </div>

@@ -41,6 +41,7 @@ export default function RichTextEditor({
       }),
     ],
     content,
+    immediatelyRender: false,
     editorProps: {
       attributes: {
         class: "tiptap prose prose-sm max-w-none px-3 py-2",
@@ -67,12 +68,12 @@ export default function RichTextEditor({
   const btnClass = (active: boolean) =>
     `p-1.5 rounded transition-colors ${
       active
-        ? "bg-blue-100 text-blue-700"
+        ? "bg-brand-100 text-brand-700"
         : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
     }`;
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+    <div className="border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand focus-within:border-transparent">
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-200 bg-gray-50">
         <button
           type="button"

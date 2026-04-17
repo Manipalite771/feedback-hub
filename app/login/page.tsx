@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { isIndegeneEmail } from "@/lib/validators";
 import { toast } from "sonner";
-import { Mail } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function LoginPage() {
         throw new Error(data.error || "Login failed");
       }
 
-      toast.success("Welcome to Feedback Hub!");
+      toast.success("Welcome to MWP Comments!");
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -53,23 +53,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+        <div className="border border-gray-200 rounded-2xl p-8 shadow-sm">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl mb-4">
-              <Mail className="w-6 h-6 text-blue-600" />
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-100 rounded-2xl mb-4">
+              <MessageSquare className="w-7 h-7 text-brand" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Feedback Hub</h1>
+            <h1 className="text-2xl font-bold text-gray-900">MWP Comments</h1>
             <p className="text-gray-500 mt-1 text-sm">
-              Internal feedback tool for Indegene
+              Comments and suggestions for the upgraded MWP
             </p>
           </div>
 
           <form onSubmit={handleSubmit}>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
               Email address
             </label>
@@ -79,17 +79,17 @@ export default function LoginPage() {
               placeholder="you@indegene.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
               disabled={loading}
               autoFocus
             />
             {error && (
-              <p className="text-red-600 text-sm mt-1">{error}</p>
+              <p className="text-red-600 text-sm mt-1.5">{error}</p>
             )}
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-blue-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full mt-4 bg-brand text-white py-2.5 px-4 rounded-lg text-sm font-medium hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {loading ? "Signing in..." : "Continue"}
             </button>

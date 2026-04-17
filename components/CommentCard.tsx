@@ -29,7 +29,7 @@ interface CommentCardProps {
 }
 
 const TYPE_STYLES: Record<CommentType, string> = {
-  Question: "bg-blue-100 text-blue-700",
+  Question: "bg-brand-100 text-brand-700",
   Suggestion: "bg-green-100 text-green-700",
   Request: "bg-amber-100 text-amber-700",
 };
@@ -49,11 +49,10 @@ export default function CommentCard({
     ? format(new Date(comment.updated_at), "MMM d, yyyy 'at' h:mm a")
     : null;
 
-  // Sanitize on render as defense-in-depth
   const safeHtml = sanitizeHtml(comment.body_html);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+    <div className="border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2 flex-wrap">
@@ -80,7 +79,7 @@ export default function CommentCard({
           <div className="flex items-center gap-1 ml-2 shrink-0">
             <button
               onClick={() => onEdit(comment)}
-              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              className="p-1 text-gray-400 hover:text-brand hover:bg-brand-50 rounded transition-colors"
               title="Edit"
             >
               <Pencil className="w-3.5 h-3.5" />

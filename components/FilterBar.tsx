@@ -14,8 +14,8 @@ const TYPES: CommentType[] = ["Question", "Suggestion", "Request"];
 
 const TYPE_STYLES: Record<CommentType, { active: string; inactive: string }> = {
   Question: {
-    active: "bg-blue-100 text-blue-700 border-blue-300",
-    inactive: "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600",
+    active: "bg-brand-100 text-brand-700 border-brand-300",
+    inactive: "bg-white text-gray-500 border-gray-200 hover:border-brand-300 hover:text-brand-600",
   },
   Suggestion: {
     active: "bg-green-100 text-green-700 border-green-300",
@@ -48,7 +48,7 @@ export default function FilterBar({
         <select
           value={sort}
           onChange={(e) => onSortChange(e.target.value as "newest" | "upvotes")}
-          className="text-sm border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="text-sm border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand"
         >
           <option value="newest">Newest first</option>
           <option value="upvotes">Most upvoted</option>

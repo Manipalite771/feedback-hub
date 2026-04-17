@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const nunito = Nunito({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
 export const metadata: Metadata = {
-  title: "Feedback Hub",
-  description: "Internal feedback tool for Indegene",
+  title: "MWP Comments",
+  description: "Comments and suggestions for the upgraded MWP",
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased bg-gray-50 text-gray-900`}>
+      <body className={`${nunito.className} antialiased bg-white text-gray-900`}>
         {children}
         <Toaster position="bottom-right" richColors />
       </body>

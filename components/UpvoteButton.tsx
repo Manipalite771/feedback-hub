@@ -20,7 +20,7 @@ export default function UpvoteButton({
       onClick={() => onToggle(commentId, hasUpvoted)}
       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
         hasUpvoted
-          ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+          ? "bg-brand-100 text-brand-700 hover:bg-brand-200"
           : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
       }`}
     >
