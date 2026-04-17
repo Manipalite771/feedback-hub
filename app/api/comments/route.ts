@@ -5,6 +5,7 @@ import { isValidCommentType, formatNameFromEmail } from "@/lib/validators";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
+  try {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -70,6 +71,13 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json(enriched);
+  } catch (err) {
+    console.error("GET /api/comments error:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: Request) {

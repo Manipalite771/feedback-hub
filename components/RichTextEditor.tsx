@@ -30,6 +30,7 @@ export default function RichTextEditor({
         code: false,
         blockquote: false,
         horizontalRule: false,
+        ...({ link: false } as Record<string, unknown>),
       }),
       Link.configure({
         openOnClick: false,
