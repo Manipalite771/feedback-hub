@@ -6,8 +6,13 @@
 .tiptap {
   outline: none;
   min-height: 100%;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.tiptap .is-editor-empty:first-child::before {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
 }
 
 .tiptap p {

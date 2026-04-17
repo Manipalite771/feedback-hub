@@ -56,7 +56,7 @@ export default function CommentForm({ onSubmitted }: CommentFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="border border-gray-200 rounded-xl p-4 mb-6">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">Share your feedback</h2>
+      <h2 className="text-sm font-semibold text-gray-900 mb-3">Provide your Comments</h2>
 
       <div className="mb-3">
         <label htmlFor="comment-type" className="block text-xs font-medium text-gray-500 mb-1">
@@ -84,7 +84,7 @@ export default function CommentForm({ onSubmitted }: CommentFormProps) {
           key={submitting ? "reset" : "editor"}
           content={submitting ? "" : bodyHtml}
           onChange={setBodyHtml}
-          placeholder="Write your feedback..."
+          placeholder="Write your comment..."
         />
       </div>
 
