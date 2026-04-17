@@ -14,7 +14,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-brand sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-white" />
             <h1 className="text-lg font-bold text-white">MWP Comments</h1>
@@ -26,7 +26,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         <CommentList currentUserEmail={session.email} />
       </main>
     </div>
