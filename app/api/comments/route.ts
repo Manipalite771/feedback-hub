@@ -1,25 +1,25 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isValidCommentType, formatNameFromEmail } from "@/lib/validators";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const supabase = createAdminClient();
   const { searchParams } = new URL(request.url);
   const sort = searchParams.get("sort") || "newest";
-  const types = searchParams.get("types"); // comma-separated
+  const types = searchParams.get("types");
 
+  // Build query — admin client bypasses RLS, so we manually filter deleted
   let query = supabase
-    .from("comments_with_counts")
-    .select("*");
+    .from("comments")
+    .select("*")
+    .is("deleted_at", null);
 
   if (types) {
     const typeArr = types.split(",").filter(isValidCommentType);
@@ -29,40 +29,52 @@ export async function GET(request: Request) {
   }
 
   if (sort === "upvotes") {
-    query = query.order("upvote_count", { ascending: false }).order("created_at", { ascending: false });
+    query = query.order("created_at", { ascending: false });
   } else {
     query = query.order("created_at", { ascending: false });
   }
 
-  const { data, error } = await query;
+  const { data: comments, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Also fetch current user's upvotes to know which are toggled
-  const { data: userUpvotes } = await supabase
+  // Fetch all upvotes for these comments
+  const commentIds = (comments || []).map((c) => c.id);
+  const { data: allUpvotes } = await supabase
     .from("upvotes")
-    .select("comment_id")
-    .eq("voter_email", user.email!);
+    .select("comment_id, voter_email")
+    .in("comment_id", commentIds.length > 0 ? commentIds : ["_none_"]);
 
-  const upvotedIds = new Set((userUpvotes || []).map((u) => u.comment_id));
+  // Count upvotes per comment and check current user's upvotes
+  const upvoteCountMap = new Map<string, number>();
+  const userUpvotedSet = new Set<string>();
 
-  const enriched = (data || []).map((c) => ({
+  (allUpvotes || []).forEach((u) => {
+    upvoteCountMap.set(u.comment_id, (upvoteCountMap.get(u.comment_id) || 0) + 1);
+    if (u.voter_email === session.email) {
+      userUpvotedSet.add(u.comment_id);
+    }
+  });
+
+  const enriched = (comments || []).map((c) => ({
     ...c,
-    has_upvoted: upvotedIds.has(c.id),
+    upvote_count: upvoteCountMap.get(c.id) || 0,
+    has_upvoted: userUpvotedSet.has(c.id),
   }));
+
+  // Sort by upvotes if requested (done in JS since we computed counts)
+  if (sort === "upvotes") {
+    enriched.sort((a, b) => b.upvote_count - a.upvote_count || new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
 
   return NextResponse.json(enriched);
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -77,19 +89,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Body is required" }, { status: 400 });
   }
 
-  // SERVER-SIDE sanitization — critical security requirement
   const cleanHtml = sanitizeHtml(body_html);
-
-  // Extract plain text from HTML for the body column
   const plainText = cleanHtml.replace(/<[^>]*>/g, "").trim();
 
   if (!plainText) {
     return NextResponse.json({ error: "Body cannot be empty" }, { status: 400 });
   }
 
+  const supabase = createAdminClient();
+
   const { data, error } = await supabase.from("comments").insert({
-    author_email: user.email!,
-    author_name: user.user_metadata?.full_name || formatNameFromEmail(user.email!),
+    author_email: session.email,
+    author_name: session.name || formatNameFromEmail(session.email),
     comment_type,
     body: plainText,
     body_html: cleanHtml,

@@ -1,16 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
 import CommentList from "@/components/CommentList";
 import { MessageSquare } from "lucide-react";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getSession();
 
-  if (!user) {
+  if (!session) {
     redirect("/login");
   }
 
@@ -23,14 +20,14 @@ export default async function HomePage() {
             <h1 className="text-lg font-bold text-gray-900">Feedback Hub</h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">{user.email}</span>
+            <span className="text-sm text-gray-500">{session.email}</span>
             <SignOutButton />
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <CommentList currentUserEmail={user.email!} />
+        <CommentList currentUserEmail={session.email} />
       </main>
     </div>
   );

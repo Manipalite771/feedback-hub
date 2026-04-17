@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { isValidCommentType } from "@/lib/validators";
 import { NextResponse } from "next/server";
@@ -8,12 +9,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,7 +25,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Body is required" }, { status: 400 });
   }
 
-  // SERVER-SIDE sanitization
   const cleanHtml = sanitizeHtml(body_html);
   const plainText = cleanHtml.replace(/<[^>]*>/g, "").trim();
 
@@ -36,21 +32,59 @@ export async function PATCH(
     return NextResponse.json({ error: "Body cannot be empty" }, { status: 400 });
   }
 
-  // Use the atomic RPC function for edits
-  const { data, error } = await supabase.rpc("edit_comment_atomic", {
-    p_comment_id: id,
-    p_new_body: plainText,
-    p_new_body_html: cleanHtml,
-    p_new_comment_type: comment_type,
+  const supabase = createAdminClient();
+
+  // Verify ownership
+  const { data: existing } = await supabase
+    .from("comments")
+    .select("author_email")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+
+  if (!existing) {
+    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  }
+
+  if (existing.author_email !== session.email) {
+    return NextResponse.json({ error: "Not authorized to edit this comment" }, { status: 403 });
+  }
+
+  // Fetch current version for archive
+  const { data: current } = await supabase
+    .from("comments")
+    .select("body, body_html, comment_type, edit_count")
+    .eq("id", id)
+    .single();
+
+  if (!current) {
+    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  }
+
+  // Archive current version
+  await supabase.from("comment_edits").insert({
+    comment_id: id,
+    previous_body: current.body,
+    previous_body_html: current.body_html,
+    previous_comment_type: current.comment_type,
+    edited_by_email: session.email,
   });
 
+  // Update the comment
+  const { data, error } = await supabase
+    .from("comments")
+    .update({
+      body: plainText,
+      body_html: cleanHtml,
+      comment_type,
+      updated_at: new Date().toISOString(),
+      edit_count: current.edit_count + 1,
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
   if (error) {
-    if (error.message.includes("Not the author") || error.message.includes("Unauthorized")) {
-      return NextResponse.json({ error: "Not authorized to edit this comment" }, { status: 403 });
-    }
-    if (error.message.includes("not found")) {
-      return NextResponse.json({ error: "Comment not found" }, { status: 404 });
-    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -62,21 +96,34 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Soft delete: set deleted_at via UPDATE (RLS ensures only author can update)
+  const supabase = createAdminClient();
+
+  // Verify ownership
+  const { data: existing } = await supabase
+    .from("comments")
+    .select("author_email")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .single();
+
+  if (!existing) {
+    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+  }
+
+  if (existing.author_email !== session.email) {
+    return NextResponse.json({ error: "Not authorized to delete this comment" }, { status: 403 });
+  }
+
+  // Soft delete
   const { error } = await supabase
     .from("comments")
     .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("author_email", user.email!);
+    .eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

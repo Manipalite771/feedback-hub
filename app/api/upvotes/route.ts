@@ -1,13 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSession } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await getSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -17,16 +14,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "comment_id is required" }, { status: 400 });
   }
 
+  const supabase = createAdminClient();
+
   // Check if upvote already exists
   const { data: existing } = await supabase
     .from("upvotes")
     .select("id")
     .eq("comment_id", comment_id)
-    .eq("voter_email", user.email!)
+    .eq("voter_email", session.email)
     .single();
 
   if (existing) {
-    // Remove upvote
     const { error } = await supabase
       .from("upvotes")
       .delete()
@@ -38,10 +36,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ action: "removed" });
   } else {
-    // Add upvote
     const { error } = await supabase.from("upvotes").insert({
       comment_id,
-      voter_email: user.email!,
+      voter_email: session.email,
     });
 
     if (error) {
