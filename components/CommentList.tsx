@@ -8,7 +8,9 @@ import FilterBar from "./FilterBar";
 import EditModal from "./EditModal";
 import ExportButton from "./ExportButton";
 import { createClient } from "@/lib/supabase/client";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
+
+const PAGE_SIZE = 10;
 
 interface CommentListProps {
   currentUserEmail: string;
@@ -20,6 +22,7 @@ export default function CommentList({ currentUserEmail }: CommentListProps) {
   const [sort, setSort] = useState<"newest" | "upvotes">("newest");
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
   const [editingComment, setEditingComment] = useState<Comment | null>(null);
+  const [page, setPage] = useState(1);
 
   const fetchComments = useCallback(async () => {
     const params = new URLSearchParams();
@@ -38,6 +41,11 @@ export default function CommentList({ currentUserEmail }: CommentListProps) {
     } finally {
       setLoading(false);
     }
+  }, [sort, typeFilters]);
+
+  // Reset to page 1 when filters/sort change
+  useEffect(() => {
+    setPage(1);
   }, [sort, typeFilters]);
 
   useEffect(() => {
@@ -126,7 +134,51 @@ export default function CommentList({ currentUserEmail }: CommentListProps) {
     toast.success("Comment updated");
   };
 
-  // Right panel content: skeletons, empty state, or comment cards
+  // Pagination
+  const totalPages = Math.ceil(comments.length / PAGE_SIZE);
+  const paginatedComments = comments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+        <p className="text-xs text-gray-400">
+          {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, comments.length)} of {comments.length} comments
+        </p>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              onClick={() => setPage(p)}
+              className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                p === page
+                  ? "bg-brand text-white"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderRightPanel = () => {
     if (loading) {
       return (
@@ -162,18 +214,21 @@ export default function CommentList({ currentUserEmail }: CommentListProps) {
     }
 
     return (
-      <div className="space-y-3">
-        {comments.map((comment) => (
-          <CommentCard
-            key={comment.id}
-            comment={comment}
-            currentUserEmail={currentUserEmail}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onUpvoteToggle={handleUpvoteToggle}
-          />
-        ))}
-      </div>
+      <>
+        <div className="space-y-3">
+          {paginatedComments.map((comment) => (
+            <CommentCard
+              key={comment.id}
+              comment={comment}
+              currentUserEmail={currentUserEmail}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onUpvoteToggle={handleUpvoteToggle}
+            />
+          ))}
+        </div>
+        {renderPagination()}
+      </>
     );
   };
 
