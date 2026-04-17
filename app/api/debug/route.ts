@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const { createAdminClient } = await import("@/lib/supabase/admin");
     const supabase = createAdminClient();
-    const { data, error } = await supabase.from("comments").select("id", { count: "exact", head: true });
+    const { error } = await supabase.from("comments").select("id", { count: "exact", head: true });
     checks.db_query = error ? `ERROR: ${error.message}` : "OK";
   } catch (err) {
     checks.db_query = `CRASH: ${err instanceof Error ? err.message : String(err)}`;
