@@ -1,17 +1,20 @@
-import DOMPurify from "isomorphic-dompurify";
-
-const ALLOWED_TAGS = ["p", "br", "strong", "em", "ul", "ol", "li", "a"];
-const ALLOWED_ATTR = ["href"];
+import sanitize from "sanitize-html";
 
 export function sanitizeHtml(dirty: string): string {
-  const clean = DOMPurify.sanitize(dirty, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
+  return sanitize(dirty, {
+    allowedTags: ["p", "br", "strong", "em", "ul", "ol", "li", "a"],
+    allowedAttributes: {
+      a: ["href"],
+    },
+    transformTags: {
+      a: (tagName, attribs) => ({
+        tagName,
+        attribs: {
+          ...attribs,
+          rel: "noopener noreferrer",
+          target: "_blank",
+        },
+      }),
+    },
   });
-
-  // Force rel and target on all anchor tags
-  return clean.replace(
-    /<a\s/g,
-    '<a rel="noopener noreferrer" target="_blank" '
-  );
 }
