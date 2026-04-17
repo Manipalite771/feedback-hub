@@ -6,6 +6,8 @@
 .tiptap {
   outline: none;
   min-height: 100%;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .tiptap p {
