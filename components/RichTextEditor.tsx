@@ -121,7 +121,9 @@ export default function RichTextEditor({
           {placeholder}
         </div>
       )}
-      <EditorContent editor={editor} />
+      <div className="resize-y overflow-auto min-h-[100px] max-h-[400px]">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }
