@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import SignOutButton from "@/components/SignOutButton";
+import CommentList from "@/components/CommentList";
 import { MessageSquare } from "lucide-react";
 
 export default async function HomePage() {
@@ -15,7 +16,6 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -29,11 +29,8 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* Main content — will be filled in next steps */}
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <p className="text-gray-500 text-center py-12">
-          Loading feedback...
-        </p>
+        <CommentList currentUserEmail={user.email!} />
       </main>
     </div>
   );
