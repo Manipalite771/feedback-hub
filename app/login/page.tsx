@@ -71,6 +71,8 @@ export default function LoginPage() {
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
               {callbackError === "unauthorized"
                 ? "Only @indegene.com email addresses are allowed. You have been signed out."
+                : callbackError === "expired"
+                ? "Magic link has expired. Please request a new one."
                 : "An authentication error occurred. Please try again."}
             </div>
           )}
