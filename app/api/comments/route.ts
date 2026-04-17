@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { isValidCommentType } from "@/lib/validators";
+import { isValidCommentType, formatNameFromEmail } from "@/lib/validators";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase.from("comments").insert({
     author_email: user.email!,
-    author_name: user.user_metadata?.full_name || user.email!.split("@")[0],
+    author_name: user.user_metadata?.full_name || formatNameFromEmail(user.email!),
     comment_type,
     body: plainText,
     body_html: cleanHtml,

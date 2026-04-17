@@ -8,3 +8,11 @@ export type CommentType = (typeof VALID_COMMENT_TYPES)[number];
 export function isValidCommentType(type: string): type is CommentType {
   return VALID_COMMENT_TYPES.includes(type as CommentType);
 }
+
+export function formatNameFromEmail(email: string): string {
+  const prefix = email.split("@")[0];
+  return prefix
+    .split(/[._-]/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
