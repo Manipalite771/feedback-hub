@@ -1,0 +1,254 @@
+-- ============================================================
+-- FEEDBACK HUB SCHEMA
+-- Internal feedback tool for Indegene. ~20 users, @indegene.com only.
+-- Soft-delete only. Full edit history preserved.
+-- ============================================================
+
+-- ============================================================
+-- COMMENTS TABLE
+-- ============================================================
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_email TEXT NOT NULL,
+  author_name TEXT NOT NULL,
+  comment_type TEXT NOT NULL CHECK (comment_type IN ('Question', 'Suggestion', 'Request')),
+  body TEXT NOT NULL CHECK (char_length(trim(body)) > 0),
+  body_html TEXT NOT NULL CHECK (char_length(trim(body_html)) > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  edit_count INT NOT NULL DEFAULT 0 CHECK (edit_count >= 0)
+);
+
+-- Index optimized for the actual query pattern:
+-- "active comments ordered by newest first"
+CREATE INDEX idx_comments_active_created_at
+  ON comments(created_at DESC)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_comments_author ON comments(author_email);
+CREATE INDEX idx_comments_type ON comments(comment_type) WHERE deleted_at IS NULL;
+
+-- ============================================================
+-- COMMENT_EDITS TABLE
+-- Every edit archives the prior version here.
+-- ============================================================
+CREATE TABLE comment_edits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE RESTRICT,
+  previous_body TEXT NOT NULL,
+  previous_body_html TEXT NOT NULL,
+  previous_comment_type TEXT NOT NULL,
+  edited_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  edited_by_email TEXT NOT NULL
+);
+
+CREATE INDEX idx_comment_edits_comment_id ON comment_edits(comment_id);
+
+-- ============================================================
+-- UPVOTES TABLE
+-- One row per user per comment.
+-- ============================================================
+CREATE TABLE upvotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  voter_email TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(comment_id, voter_email)
+);
+
+CREATE INDEX idx_upvotes_comment_id ON upvotes(comment_id);
+CREATE INDEX idx_upvotes_voter ON upvotes(voter_email);
+
+-- ============================================================
+-- VIEW: comments_with_counts
+-- security_invoker=true ensures the view respects the calling
+-- user's RLS policies, not the view owner's.
+-- ============================================================
+CREATE VIEW comments_with_counts
+WITH (security_invoker = true)
+AS
+SELECT
+  c.id,
+  c.author_email,
+  c.author_name,
+  c.comment_type,
+  c.body,
+  c.body_html,
+  c.created_at,
+  c.updated_at,
+  c.edit_count,
+  COALESCE(upvote_counts.count, 0) AS upvote_count
+FROM comments c
+LEFT JOIN (
+  SELECT comment_id, COUNT(*) AS count
+  FROM upvotes
+  GROUP BY comment_id
+) upvote_counts ON upvote_counts.comment_id = c.id
+WHERE c.deleted_at IS NULL;
+
+-- ============================================================
+-- RPC FUNCTION: edit_comment_atomic
+-- Atomically archives the current version and updates the comment.
+-- Guarantees edit history is never skipped, even from a buggy client.
+-- Called via supabase.rpc('edit_comment_atomic', { ... }) from the API route.
+-- SECURITY INVOKER so the caller's RLS policies apply.
+-- ============================================================
+CREATE OR REPLACE FUNCTION edit_comment_atomic(
+  p_comment_id UUID,
+  p_new_body TEXT,
+  p_new_body_html TEXT,
+  p_new_comment_type TEXT
+)
+RETURNS comments
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_caller_email TEXT;
+  v_current_comment comments%ROWTYPE;
+  v_updated_comment comments%ROWTYPE;
+BEGIN
+  -- Extract caller email from JWT
+  v_caller_email := auth.jwt() ->> 'email';
+
+  IF v_caller_email IS NULL OR v_caller_email NOT LIKE '%@indegene.com' THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  -- Load the current comment (will fail RLS if not the author)
+  SELECT * INTO v_current_comment
+  FROM comments
+  WHERE id = p_comment_id AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Comment not found or already deleted';
+  END IF;
+
+  IF v_current_comment.author_email != v_caller_email THEN
+    RAISE EXCEPTION 'Not the author';
+  END IF;
+
+  -- Validate new comment_type
+  IF p_new_comment_type NOT IN ('Question', 'Suggestion', 'Request') THEN
+    RAISE EXCEPTION 'Invalid comment type';
+  END IF;
+
+  -- Archive current version
+  INSERT INTO comment_edits (
+    comment_id,
+    previous_body,
+    previous_body_html,
+    previous_comment_type,
+    edited_by_email
+  ) VALUES (
+    v_current_comment.id,
+    v_current_comment.body,
+    v_current_comment.body_html,
+    v_current_comment.comment_type,
+    v_caller_email
+  );
+
+  -- Update the comment
+  UPDATE comments
+  SET
+    body = p_new_body,
+    body_html = p_new_body_html,
+    comment_type = p_new_comment_type,
+    updated_at = NOW(),
+    edit_count = edit_count + 1
+  WHERE id = p_comment_id
+  RETURNING * INTO v_updated_comment;
+
+  RETURN v_updated_comment;
+END;
+$$;
+
+-- ============================================================
+-- ROW LEVEL SECURITY
+-- Domain restriction applied consistently across all tables.
+-- ============================================================
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comment_edits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE upvotes ENABLE ROW LEVEL SECURITY;
+
+-- ---------- COMMENTS ----------
+
+CREATE POLICY "indegene users read active comments"
+  ON comments FOR SELECT
+  USING (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND deleted_at IS NULL
+  );
+
+CREATE POLICY "indegene users insert own comments"
+  ON comments FOR INSERT
+  WITH CHECK (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = author_email
+  );
+
+CREATE POLICY "users update own active comments"
+  ON comments FOR UPDATE
+  USING (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = author_email
+    AND deleted_at IS NULL
+  )
+  WITH CHECK (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = author_email
+  );
+
+-- No DELETE policy: hard deletes are blocked by default (deny-by-default under RLS).
+-- Soft deletes happen via UPDATE setting deleted_at.
+
+-- ---------- COMMENT_EDITS ----------
+
+CREATE POLICY "indegene users read edit history"
+  ON comment_edits FOR SELECT
+  USING (auth.jwt() ->> 'email' LIKE '%@indegene.com');
+
+-- Tightened: must be indegene user AND editor email matches JWT
+-- AND the referenced comment is owned by the same user
+CREATE POLICY "users insert edit history for own comments"
+  ON comment_edits FOR INSERT
+  WITH CHECK (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = edited_by_email
+    AND EXISTS (
+      SELECT 1 FROM comments
+      WHERE comments.id = comment_edits.comment_id
+      AND comments.author_email = auth.jwt() ->> 'email'
+    )
+  );
+
+-- ---------- UPVOTES ----------
+
+CREATE POLICY "indegene users read upvotes"
+  ON upvotes FOR SELECT
+  USING (auth.jwt() ->> 'email' LIKE '%@indegene.com');
+
+CREATE POLICY "indegene users insert own upvotes"
+  ON upvotes FOR INSERT
+  WITH CHECK (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = voter_email
+  );
+
+CREATE POLICY "indegene users delete own upvotes"
+  ON upvotes FOR DELETE
+  USING (
+    auth.jwt() ->> 'email' LIKE '%@indegene.com'
+    AND auth.jwt() ->> 'email' = voter_email
+  );
+
+-- ============================================================
+-- STORAGE BUCKET FOR BACKUPS
+-- Run this separately in the Supabase dashboard (Storage → Create bucket)
+-- or via the management API:
+--   Bucket name: backups
+--   Public: false
+--   File size limit: 50 MB
+-- Only the service role key (used by cron) will read/write this bucket.
+-- ============================================================
